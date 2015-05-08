@@ -21,11 +21,6 @@
 #define SPACE_R 47
 #define SPACE_D	48
 	
-#define GColorFromHEX(v) GColorBlack
-
-void initColors() {
-  // Do nothing!
-}
 
 #define NUM_DIGITS 49
 int8_t digits[NUM_DIGITS][13][2] = {
