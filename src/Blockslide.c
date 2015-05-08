@@ -2,36 +2,6 @@
 
 #include "Blockslide.h"
 
-/*
- * 2014.06.18: Round Corners option implementation thanks to Ron64
- */
-
-// Languages
-enum {
-  LANG_DUTCH =  0,
-  LANG_ENGLISH,
-  LANG_FRENCH,
-  LANG_GERMAN,
-  LANG_SPANISH,
-  LANG_ITALIAN,
-  LANG_MAX
-};
-
-enum {
-  CONFIG_KEY_DATEORDER = 10,
-  CONFIG_KEY_WEEKDAY = 11,
-  CONFIG_KEY_LANG = 12,
-  CONFIG_KEY_STRIPES = 13,
-  CONFIG_KEY_ROUNDCORNERS = 14,
-  CONFIG_KEY_FULLDIGITS = 15,
-  CONFIG_KEY_BATTERY = 16,
-  CONFIG_KEY_BLUETOOTH = 17,
-  CONFIG_KEY_COLORTHEME = 18,
-  CONFIG_KEY_BGCOLOR = 19,
-  CONFIG_KEY_FGCOLOR = 20
-};
-
-
 #define TILEW 22
 #define TILEH 13
 #define DTILEW 5
@@ -50,29 +20,10 @@ enum {
 #define TILECORNERRADIUS 4
 #define DTILECORNERRADIUS 1
 
-char weekDay[LANG_MAX][7][3] = {
-  { "ZO", "MA", "DI", "WO", "DO", "VR", "ZA" },  // Dutch
-  { "SU", "MO", "TU", "WE", "TH", "FR", "SA" },  // English
-  { "DI", "LU", "MA", "ME", "JE", "VE", "SA" },  // French
-  { "SO", "MO", "DI", "MI", "DO", "FR", "SA" },  // German
-  { "DO", "LU", "MA", "MI", "JU", "VI", "SA" },  // Spanish
-  { "DO", "LU", "MA", "ME", "GI", "VE", "SA" }  // Italian
-};
+char weekDay[7][3] = { "DO", "LU", "MA", "ME", "GI", "VE", "SA" };
 
-int curLang = LANG_ENGLISH;
-int showWeekday = 0;
-int USDate = 1;
-int stripedDigits = 1;
-int roundCorners = 1;
-int fullDigits = 0;
-int batteryStatus = 1;
+int fullDigits = 1;
 int bluetoothStatus = 1;
-int colorTheme = 1;
-GColor bgColor, fgColor;
-static char bgColorText[10] = "#000000";
-static char fgColorText[10] = "#ffffff";
-
-bool digitShapesChanged = false;
 
 
 typedef struct {
@@ -156,15 +107,7 @@ digitSlot *findSlot(Layer *layer) {
 
 void updateMainLayer(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
-#ifdef PBL_COLOR
-  if (colorTheme) {
-    graphics_context_set_fill_color(ctx, color[colorTheme][5]);
-  } else {
-    graphics_context_set_fill_color(ctx, bgColor);
-  }
-#else
   graphics_context_set_fill_color(ctx, GColorBlack);
-#endif
   graphics_fill_rect(ctx, GRect(0, 0, bounds.size.w, bounds.size.h), 0, GCornerNone);
 }
 
@@ -201,39 +144,28 @@ void updateSlot(Layer *layer, GContext *ctx) {
       ox = digits[slot->curDigit][t][0]*slot->tileWidth;
       oy = digits[slot->curDigit][t][1]*slot->tileHeight;
     }
-
-    if (roundCorners) {
-      if (digitCorners[curCorner][t] != digitCorners[prevCorner][t]) {
-        // Corner become smaller till half, and bigger afterward;
-        if (slot->normTime > ANIMATION_NORMALIZED_MAX) {
-          cornerRadius = 0;
-          cornerMask = digitCorners[prevCorner][t]; //point to corner of prv digit
-        } else {
-          cornerRadius = 2*slot->cornerRadius * slot->normTime / ANIMATION_NORMALIZED_MAX - slot->cornerRadius;
-          if (cornerRadius < 0) {
-            cornerRadius = -cornerRadius;
-          }
-          if (slot->normTime < animMiddle) {
-            cornerMask = digitCorners[prevCorner][t];
-          } else {
-            cornerMask = digitCorners[curCorner][t];
-          }
-        }
+    if (digitCorners[curCorner][t] != digitCorners[prevCorner][t]) {
+      // Corner become smaller till half, and bigger afterward;
+      if (slot->normTime > ANIMATION_NORMALIZED_MAX) {
+        cornerRadius = 0;
+        cornerMask = digitCorners[prevCorner][t]; //point to corner of prv digit
       } else {
-        cornerRadius = slot->cornerRadius;
-        cornerMask = digitCorners[curCorner][t];
+        cornerRadius = 2*slot->cornerRadius * slot->normTime / ANIMATION_NORMALIZED_MAX - slot->cornerRadius;
+        if (cornerRadius < 0) {
+          cornerRadius = -cornerRadius;
+        }
+        if (slot->normTime < animMiddle) {
+          cornerMask = digitCorners[prevCorner][t];
+        } else {
+          cornerMask = digitCorners[curCorner][t];
+        }
       }
-    }
-#ifdef PBL_COLOR
-    if (colorTheme) {
-      graphics_context_set_fill_color(ctx, color[colorTheme][(digits[slot->curDigit][t][1]%5)]);
     } else {
-      graphics_context_set_fill_color(ctx, fgColor);
+      cornerRadius = slot->cornerRadius;
+      cornerMask = digitCorners[curCorner][t];
     }
-#else
     graphics_context_set_fill_color(ctx, GColorWhite);
-#endif
-    graphics_fill_rect(ctx, GRect(ox, oy, slot->tileWidth, slot->tileHeight-stripedDigits), cornerRadius, cornerMask);
+    graphics_fill_rect(ctx, GRect(ox, oy, slot->tileWidth, slot->tileHeight), cornerRadius, cornerMask);
   }
 }
 
@@ -285,11 +217,7 @@ void createAnim() {
   animation_set_implementation(anim, &animImpl);
 }
 
-#ifdef PBL_PLATFORM_APLITE
 void animateDigits(struct Animation *anim, const uint32_t normTime)
-#else
-void animateDigits(Animation *anim, const AnimationProgress normTime)
-#endif
 {
   int i;
 
@@ -312,26 +240,15 @@ void handle_tick(struct tm *now, TimeUnits units_changed) {
   int wd = 0;
   int Y = 0;
 
-  //
-  //APP_LOG(APP_LOG_LEVEL_DEBUG, "handle_tick: start");
-  //
-
   if (splashEnded && !animation_is_scheduled(anim)) {
-    //
-    //APP_LOG(APP_LOG_LEVEL_DEBUG, "handle_tick: setting digits");
-    //
 
     h = now->tm_hour;
     m = now->tm_min;
     D = now->tm_mday;
     M = now->tm_mon+1;
 
-    if (showWeekday) {
-      wd = now->tm_wday;
-    } else {
-      Y = now->tm_year%100;
-    }
-
+    wd = now->tm_wday;
+  
     if (!clock_is_24h_style()) {
       h = h%12;
       if (h == 0) {
@@ -353,36 +270,12 @@ void handle_tick(struct tm *now, TimeUnits units_changed) {
 
 
     // Date slots
-    if (showWeekday && USDate) {
-      slot[4].curDigit = weekDay[curLang][wd][0] - '0';
-      slot[5].curDigit = weekDay[curLang][wd][1] - '0';
-      slot[7].curDigit = M/10;
-      slot[8].curDigit = M%10;
-      slot[10].curDigit = D/10;
-      slot[11].curDigit = D%10;
-    } else if (showWeekday && !USDate) {
-      slot[4].curDigit = weekDay[curLang][wd][0] - '0';
-      slot[5].curDigit = weekDay[curLang][wd][1] - '0';
-      slot[7].curDigit = D/10;
-      slot[8].curDigit = D%10;
-      slot[10].curDigit = M/10;
-      slot[11].curDigit = M%10;
-    } else if (!showWeekday && USDate) {
-      slot[4].curDigit = M/10;
-      slot[5].curDigit = M%10;
-      slot[7].curDigit = D/10;
-      slot[8].curDigit = D%10;
-      slot[10].curDigit = Y/10;
-      slot[11].curDigit = Y%10;
-    } else {
-      slot[4].curDigit = D/10;
-      slot[5].curDigit = D%10;
-      slot[7].curDigit = M/10;
-      slot[8].curDigit = M%10;
-      slot[10].curDigit = Y/10;
-      slot[11].curDigit = Y%10;
-    }
-
+    slot[4].curDigit = weekDay[wd][0] - '0';
+    slot[5].curDigit = weekDay[wd][1] - '0';
+    slot[7].curDigit = D/10;
+    slot[8].curDigit = D%10;
+    slot[10].curDigit = M/10;
+    slot[11].curDigit = M%10;
     //
     //APP_LOG(APP_LOG_LEVEL_DEBUG, "handle_tick: rescheduling anim");
     //
@@ -409,40 +302,6 @@ void do_update() {
 void handle_timer(void *data) {
   timer=NULL;
   do_update();
-}
-
-void handle_tap(AccelAxisType axis, int32_t direction) {
-  static BatteryChargeState chargeState;
-  int i, s;
-
-  if (batteryStatus && splashEnded && !animRunning) {
-    if (animation_is_scheduled(anim)) {
-      animation_unschedule(anim);
-    }
-
-    animRunning = true;
-
-    chargeState = battery_state_service_peek();
-    s = chargeState.charge_percent;
-
-    for (i=0; i<NUMSLOTS; i++) {
-      slot[i].prevDigit = slot[i].curDigit;
-    }
-
-    slot[4].curDigit = 'B' - '0';
-    slot[5].curDigit = 'A' - '0';
-    slot[6].curDigit = 'T' - '0';
-    slot[7].curDigit = SPACE_D;
-    slot[8].curDigit = (s==100)?1:SPACE_D;
-    slot[9].curDigit = (s<100)?s/10:0;
-    slot[10].curDigit = (s<100)?s/100:0;
-    slot[11].curDigit = PERCENT;
-
-    createAnim();
-    animation_schedule(anim);
-    if (timer==NULL)
-      timer= app_timer_register(BATTERYDELAY, handle_timer, NULL);
-  }
 }
 
 void handle_bluetooth(bool connected) {
@@ -664,175 +523,7 @@ int hexStringToInt(const char *hexString) {
   return retVal;
 }
 
-GColor setColorFromText(const char *colorText) {
-  return GColorFromHEX(hexStringToInt(colorText));
-}
-
 void in_dropped_handler(AppMessageResult reason, void *context) {
-}
-
-void in_received_handler(DictionaryIterator *received, void *context) {
-  bool somethingChanged = false;
-  bool digitShapesHaveToBeSwapped = false;
-  bool bgColorChanged = false;
-  bool fgColorChanged = false;
-
-  Tuple *dateorder = dict_find(received, CONFIG_KEY_DATEORDER);
-  Tuple *weekday = dict_find(received, CONFIG_KEY_WEEKDAY);
-  Tuple *battery = dict_find(received, CONFIG_KEY_BATTERY);
-  Tuple *bluetooth = dict_find(received, CONFIG_KEY_BLUETOOTH);
-  Tuple *lang = dict_find(received, CONFIG_KEY_LANG);
-  Tuple *stripes = dict_find(received, CONFIG_KEY_STRIPES);
-  Tuple *corners = dict_find(received, CONFIG_KEY_ROUNDCORNERS);
-  Tuple *digits = dict_find(received, CONFIG_KEY_FULLDIGITS);
-  Tuple *colorThemeTuple = dict_find(received, CONFIG_KEY_COLORTHEME);
-  Tuple *bgColorTuple = dict_find(received, CONFIG_KEY_BGCOLOR);
-  Tuple *fgColorTuple = dict_find(received, CONFIG_KEY_FGCOLOR);
-
-  if (dateorder && weekday && battery && bluetooth && lang && stripes && corners && digits && colorThemeTuple && bgColorTuple && fgColorTuple) {
-    somethingChanged |= checkAndSaveInt(&USDate, dateorder->value->int32, CONFIG_KEY_DATEORDER);
-    somethingChanged |= checkAndSaveInt(&showWeekday, weekday->value->int32, CONFIG_KEY_WEEKDAY);
-    somethingChanged |= checkAndSaveInt(&curLang, lang->value->int32, CONFIG_KEY_LANG);
-
-    checkAndSaveInt(&batteryStatus, battery->value->int32, CONFIG_KEY_BATTERY);
-    checkAndSaveInt(&bluetoothStatus, bluetooth->value->int32, CONFIG_KEY_BLUETOOTH);
-
-    digitShapesChanged = false;
-
-    bgColorChanged = checkAndSaveString(bgColorText, bgColorTuple->value->cstring, CONFIG_KEY_BGCOLOR);
-    digitShapesChanged |= bgColorChanged;
-    fgColorChanged = checkAndSaveString(fgColorText, fgColorTuple->value->cstring, CONFIG_KEY_FGCOLOR);
-    digitShapesChanged |= fgColorChanged;
-
-    digitShapesChanged |= checkAndSaveInt(&stripedDigits, stripes->value->int32, CONFIG_KEY_STRIPES);
-    digitShapesChanged |= checkAndSaveInt(&roundCorners, corners->value->int32, CONFIG_KEY_ROUNDCORNERS);
-
-    digitShapesHaveToBeSwapped = checkAndSaveInt(&fullDigits, digits->value->int32, CONFIG_KEY_FULLDIGITS);
-    digitShapesChanged |= digitShapesHaveToBeSwapped;
-    digitShapesChanged |= checkAndSaveInt(&colorTheme, colorThemeTuple->value->int32, CONFIG_KEY_COLORTHEME);
-
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "Received config:");
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "  dateorder=%d, weekday=%d, battery=%d, BT=%d, lang=%d",
-            USDate, showWeekday, batteryStatus, bluetoothStatus, curLang);
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "  stripes=%d, corners=%d, digits=%d, colorTheme=%d",
-            stripedDigits, roundCorners, fullDigits, colorTheme);
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "  bgColor=%s, fgColor=%s", bgColorText, fgColorText);
-
-    if (bgColorChanged) {
-      bgColor = setColorFromText(bgColorText);
-    }
-
-    if (fgColorChanged) {
-      fgColor = setColorFromText(fgColorText);
-    }
-
-    if (digitShapesHaveToBeSwapped) {
-      swapDigitShapes();
-    }
-
-    if (somethingChanged) {
-      applyConfig();
-    }
-
-    if (digitShapesChanged) {
-      digitShapesChanged = false;
-      redrawAllSlots();
-    }
-  }
-}
-
-void readConfig() {
-  if (persist_exists(CONFIG_KEY_DATEORDER)) {
-    USDate = persist_read_int(CONFIG_KEY_DATEORDER);
-  } else {
-    USDate = 1;
-    persist_write_int(CONFIG_KEY_DATEORDER, USDate);
-  }
-
-  if (persist_exists(CONFIG_KEY_WEEKDAY)) {
-    showWeekday = persist_read_int(CONFIG_KEY_WEEKDAY);
-  } else {
-    showWeekday = 0;
-    persist_write_int(CONFIG_KEY_WEEKDAY, showWeekday);
-  }
-
-  if (persist_exists(CONFIG_KEY_BATTERY)) {
-    batteryStatus = persist_read_int(CONFIG_KEY_BATTERY);
-  } else {
-    batteryStatus = 1;
-    persist_write_int(CONFIG_KEY_BATTERY, batteryStatus);
-  }
-
-  if (persist_exists(CONFIG_KEY_BLUETOOTH)) {
-    bluetoothStatus = persist_read_int(CONFIG_KEY_BLUETOOTH);
-  } else {
-    bluetoothStatus = 1;
-    persist_write_int(CONFIG_KEY_BLUETOOTH, bluetoothStatus);
-  }
-
-  if (persist_exists(CONFIG_KEY_LANG)) {
-    curLang = persist_read_int(CONFIG_KEY_LANG);
-  } else {
-    curLang = LANG_ENGLISH;
-    persist_write_int(CONFIG_KEY_LANG, curLang);
-  }
-
-  if (persist_exists(CONFIG_KEY_STRIPES)) {
-    stripedDigits = persist_read_int(CONFIG_KEY_STRIPES);
-  } else {
-    stripedDigits = 1;
-    persist_write_int(CONFIG_KEY_STRIPES, stripedDigits);
-  }
-
-  if (persist_exists(CONFIG_KEY_ROUNDCORNERS)) {
-    roundCorners = persist_read_int(CONFIG_KEY_ROUNDCORNERS);
-  } else {
-    roundCorners = 1;
-    persist_write_int(CONFIG_KEY_ROUNDCORNERS, roundCorners);
-  }
-
-  if (persist_exists(CONFIG_KEY_FULLDIGITS)) {
-    fullDigits = persist_read_int(CONFIG_KEY_FULLDIGITS);
-  } else {
-    fullDigits = 0;
-    persist_write_int(CONFIG_KEY_FULLDIGITS, fullDigits);
-  }
-
-  if (persist_exists(CONFIG_KEY_COLORTHEME)) {
-    colorTheme = persist_read_int(CONFIG_KEY_COLORTHEME);
-  } else {
-    colorTheme = 0;
-    persist_write_int(CONFIG_KEY_COLORTHEME, colorTheme);
-  }
-
-  if (persist_exists(CONFIG_KEY_BGCOLOR)) {
-    persist_read_string(CONFIG_KEY_BGCOLOR, bgColorText, sizeof(bgColorText));
-  } else {
-    strcpy(bgColorText, "#000000");
-    persist_write_string(CONFIG_KEY_BGCOLOR, bgColorText);
-  }
-  bgColor = setColorFromText(bgColorText);
-
-  if (persist_exists(CONFIG_KEY_FGCOLOR)) {
-    persist_read_string(CONFIG_KEY_FGCOLOR, fgColorText, sizeof(fgColorText));
-  } else {
-    strcpy(fgColorText, "#ffffff");
-    persist_write_string(CONFIG_KEY_FGCOLOR, fgColorText);
-  }
-  fgColor = setColorFromText(fgColorText);
-
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Stored config :");
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "  dateorder=%d, weekday=%d, battery=%d, BT=%d",
-          USDate, showWeekday, batteryStatus, bluetoothStatus);
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "  lang=%d, stripedDigits=%d, roundCorners=%d, fullDigits=%d",
-          curLang, stripedDigits, roundCorners, fullDigits);
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "  colorTheme=%d, bgcolor=%s, fgColor=%s", colorTheme, bgColorText, fgColorText);
-}
-
-static void app_message_init(void) {
-  app_message_register_inbox_received(in_received_handler);
-  app_message_register_inbox_dropped(in_dropped_handler);
-  app_message_open(255, 255);
 }
 
 void initDigitCorners() {
@@ -851,11 +542,8 @@ void handle_init() {
   window_stack_push(window, true);
 
   srand(time(NULL));
-  initColors();
 
-  readConfig();
   swapDigitShapes();
-  app_message_init();
 
   rootLayer = window_get_root_layer(window);
   mainLayer = layer_create(layer_get_bounds(rootLayer));
@@ -870,18 +558,12 @@ void handle_init() {
 
   animImpl.setup = NULL;
   animImpl.update = animateDigits;
-#ifdef PBL_PLATFORM_APLITE
   animImpl.teardown = destroyAnim;
-#else
-  animImpl.teardown = NULL;
-#endif
   createAnim();
 
   timer = app_timer_register(STARTDELAY, handle_timer, NULL);
 
   tick_timer_service_subscribe(MINUTE_UNIT, handle_tick);
-
-  accel_tap_service_subscribe(handle_tap);
 
   lastBluetoothStatus = bluetooth_connection_service_peek();
   bluetooth_connection_service_subscribe(handle_bluetooth);
@@ -897,7 +579,6 @@ void handle_deinit() {
   //destroyAnim(anim);
 
   bluetooth_connection_service_unsubscribe();
-  accel_tap_service_unsubscribe();
   tick_timer_service_unsubscribe();
 
   for (i=0; i<NUMSLOTS; i++) {
