@@ -1,19 +1,7 @@
 {
-    "appKeys": {
-        "battery": 16,
-        "bgcolor": 19,
-        "bluetooth": 17,
-        "colortheme": 18,
-        "dateorder": 10,
-        "fgcolor": 20,
-        "fulldigits": 15,
-        "lang": 12,
-        "roundcorners": 14,
-        "stripes": 13,
-        "weekday": 11
-    },
+    "appKeys": {},
     "capabilities": [
-        "configurable"
+        ""
     ],
     "companyName": "Jnm",
     "longName": "Blockslide",

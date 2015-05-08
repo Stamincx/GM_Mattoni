@@ -21,10 +21,9 @@
 #define DTILECORNERRADIUS 1
 
 char weekDay[7][3] = { "DO", "LU", "MA", "ME", "GI", "VE", "SA" };
+char monthName[12][3] = { "GE", "FE", "MA", "AP", "MA", "GI", "LU", "AG", "SE", "OT", "NO", "DI" };
 
 int fullDigits = 1;
-int bluetoothStatus = 1;
-
 
 typedef struct {
   Layer *layer;
@@ -238,14 +237,15 @@ void handle_tick(struct tm *now, TimeUnits units_changed) {
   int D, M;
   int i;
   int wd = 0;
-  int Y = 0;
+//  int Y = 0;
 
   if (splashEnded && !animation_is_scheduled(anim)) {
 
     h = now->tm_hour;
     m = now->tm_min;
     D = now->tm_mday;
-    M = now->tm_mon+1;
+//    M = now->tm_mon+1;
+    M = now->tm_mon;
 
     wd = now->tm_wday;
   
@@ -274,8 +274,10 @@ void handle_tick(struct tm *now, TimeUnits units_changed) {
     slot[5].curDigit = weekDay[wd][1] - '0';
     slot[7].curDigit = D/10;
     slot[8].curDigit = D%10;
-    slot[10].curDigit = M/10;
-    slot[11].curDigit = M%10;
+//    slot[10].curDigit = M/10;
+//    slot[11].curDigit = M%10;
+    slot[10].curDigit = monthName[M][0] - '0';
+    slot[11].curDigit = monthName[M][1] - '0';
     //
     //APP_LOG(APP_LOG_LEVEL_DEBUG, "handle_tick: rescheduling anim");
     //
@@ -312,7 +314,7 @@ void handle_bluetooth(bool connected) {
   } else {
     lastBluetoothStatus = connected;
 
-    if (bluetoothStatus && splashEnded && !animRunning) {
+    if (splashEnded && !animRunning) {
       if (animation_is_scheduled(anim)) {
         animation_unschedule(anim);
       }
@@ -361,46 +363,6 @@ void handle_bluetooth(bool connected) {
       if (timer==NULL)
         timer=app_timer_register(BATTERYDELAY, handle_timer, NULL);
     }
-  }
-}
-
-void applyConfig() {
-  if (splashEnded) {
-    do_update();
-  }
-}
-
-bool checkAndSaveInt(int *var, int val, int key) {
-  int ret;
-
-  if (*var != val) {
-    *var = val;
-    ret = persist_write_int(key, val);
-    if (ret < 0) {
-      APP_LOG(APP_LOG_LEVEL_DEBUG, "checkAndSaveInt() : persist_write_int(%d, %d) returned %d",
-              key, val, ret);
-    }
-    return true;
-  } else {
-    return false;
-  }
-}
-
-bool checkAndSaveString(char *var, char *val, int key) {
-  int ret;
-
-  if (strcmp(var, val) != 0) {
-    strcpy(var, val);
-    ret = persist_write_string(key, val);
-    if (ret < (int)strlen(val)) {
-      APP_LOG(APP_LOG_LEVEL_DEBUG, "checkAndSaveString() : persist_write_string(%d, %s) returned %d",
-              key, val, ret);
-    }
-    return true;
-  } else {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "checkAndSaveString() : value has not changed (was : %s, is : %s)",
-            var, val);
-    return false;
   }
 }
 
@@ -501,29 +463,6 @@ void swapDigitShapes() {
   calcDigitCorners(2);
   calcDigitCorners(4);
   calcDigitCorners(5);
-}
-
-int hexStringToInt(const char *hexString) {
-  if (hexString[0] == '#') {
-    hexString++;
-  }
-
-  int l = strlen(hexString);
-  int m = 1;
-  int retVal = 0;
-  for (int c=l-1; c>=0; c--, m *= 16) {
-    char cur = hexString[c];
-    if (( cur >= '0') && (cur <= '9')) {
-      retVal += (int)(cur - '0') * m;
-    } else if (( cur >= 'a') && (cur <= 'f')) {
-      retVal += (10 + (int)(cur - 'a')) * m;
-    }
-  }
-
-  return retVal;
-}
-
-void in_dropped_handler(AppMessageResult reason, void *context) {
 }
 
 void initDigitCorners() {
