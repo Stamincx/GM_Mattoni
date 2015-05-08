@@ -20,8 +20,8 @@
 #define TILECORNERRADIUS 4
 #define DTILECORNERRADIUS 1
 
-char weekDay[7][3] = { "DO", "LU", "MA", "ME", "GI", "VE", "SA" };
-char monthName[12][3] = { "GE", "FE", "MA", "AP", "MA", "GI", "LU", "AG", "SE", "OT", "NO", "DI" };
+char weekDay[7][4] = { "DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB" };
+//char monthName[12][3] = { "GE", "FE", "MA", "AP", "MA", "GI", "LU", "AG", "SE", "OT", "NO", "DI" };
 
 int fullDigits = 1;
 
@@ -46,12 +46,12 @@ int startDigit[NUMSLOTS] = {
   SPACE_L,
   SPACE_R,
   SPACE_D,
-  'B'-'0',
-  'L'-'0',
-  'K'-'0',
-  'S'-'0',
-  'L'-'0',
+  'G'-'0',
+  'U'-'0',
+  'I'-'0',
   'D'-'0',
+  'O'-'0',
+  SPACE_D,
   SPACE_D
 };
 
@@ -234,7 +234,8 @@ void animateDigits(struct Animation *anim, const uint32_t normTime)
 
 void handle_tick(struct tm *now, TimeUnits units_changed) {
   int h, m;
-  int D, M;
+  int D;
+//  int M;
   int i;
   int wd = 0;
 //  int Y = 0;
@@ -245,7 +246,7 @@ void handle_tick(struct tm *now, TimeUnits units_changed) {
     m = now->tm_min;
     D = now->tm_mday;
 //    M = now->tm_mon+1;
-    M = now->tm_mon;
+//    M = now->tm_mon;
 
     wd = now->tm_wday;
   
@@ -265,19 +266,26 @@ void handle_tick(struct tm *now, TimeUnits units_changed) {
     slot[1].curDigit = h%10;
     slot[2].curDigit = m/10;
     slot[3].curDigit = m%10;
-    slot[6].curDigit = SPACE_D;
+//    slot[6].curDigit = SPACE_D;
+    slot[7].curDigit = SPACE_D;
+    slot[8].curDigit = SPACE_D;
     slot[9].curDigit = SPACE_D;
 
 
     // Date slots
     slot[4].curDigit = weekDay[wd][0] - '0';
     slot[5].curDigit = weekDay[wd][1] - '0';
-    slot[7].curDigit = D/10;
-    slot[8].curDigit = D%10;
+    slot[6].curDigit = weekDay[wd][2] - '0';
+    slot[10].curDigit = D/10;
+    slot[11].curDigit = D%10;
+//    slot[4].curDigit = weekDay[wd][0] - '0';
+//    slot[5].curDigit = weekDay[wd][1] - '0';
+//    slot[7].curDigit = D/10;
+//    slot[8].curDigit = D%10;
 //    slot[10].curDigit = M/10;
 //    slot[11].curDigit = M%10;
-    slot[10].curDigit = monthName[M][0] - '0';
-    slot[11].curDigit = monthName[M][1] - '0';
+//    slot[10].curDigit = monthName[M][0] - '0';
+//    slot[11].curDigit = monthName[M][1] - '0';
     //
     //APP_LOG(APP_LOG_LEVEL_DEBUG, "handle_tick: rescheduling anim");
     //
