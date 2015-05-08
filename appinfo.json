@@ -1,0 +1,39 @@
+{
+    "appKeys": {
+        "battery": 16,
+        "bgcolor": 19,
+        "bluetooth": 17,
+        "colortheme": 18,
+        "dateorder": 10,
+        "fgcolor": 20,
+        "fulldigits": 15,
+        "lang": 12,
+        "roundcorners": 14,
+        "stripes": 13,
+        "weekday": 11
+    },
+    "capabilities": [
+        "configurable"
+    ],
+    "companyName": "Jnm",
+    "longName": "Blockslide",
+    "projectType": "native",
+    "resources": {
+        "media": [
+            {
+                "file": "images/menu_icon.png",
+                "menuIcon": true,
+                "name": "IMAGE_MENU_ICON",
+                "type": "png"
+            }
+        ]
+    },
+    "sdkVersion": "2",
+    "shortName": "Blockslide",
+    "uuid": "10523418-dace-41ab-9fe7-86539b5acbdd",
+    "versionCode": 1,
+    "versionLabel": "3.3",
+    "watchapp": {
+        "watchface": true
+    }
+}
